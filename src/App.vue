@@ -1,14 +1,14 @@
 <template>
   <div>
     <form @submit.prevent="save">
-      <input type="text" v-model="form.title"> <br>
-      <textarea v-model="form.content"></textarea> <br>
-      <button type="submit">Save</button>  
+      <input type="text" v-model="form.title" /><br />
+      <textarea v-model="form.content"></textarea><br />
+      <button type="submit">Save</button>
     </form>
     <ul>
       <li v-for="article in articles" :key="article.id">
-        {{ article.title }} <br>
-        {{ article.content }}
+        {{ article.title }}<br />
+        {{ article.content }}<br />
         <button @click="edit(article)">Edit</button>
       </li>
     </ul>
@@ -17,52 +17,57 @@
 </template>
 
 <script>
-import axios from 'axios'
+import { ref, onMounted, reactive } from 'vue';
+import axios from 'axios';
 
-export default{
-  data(){
-    return{
-      form: {
-        id: null, // tambahkan id untuk menyimpan id artikel yang diedit
-        title:'',
-        content: ''
-      },
-      articles: []
-    }
-  },
+export default {
+  setup() {
+    const form = reactive({
+      id: null,
+      title: '',
+      content: '',
+    });
 
-  async mounted(){
-    this.load() // panggil metode load saat komponen dimuat
-  },
+    const articles = ref([]);
 
-  methods: {
-    async load() {
-      const response = await axios.get('http://localhost:3000/articles')
-      this.articles = response.data
-    },
-
-    async save() {
-      try{
-        if (this.form.id) { // Jika form.id ada, berarti sedang mengedit artikel
-          await axios.put(`http://localhost:3000/articles/${this.form.id}`, this.form)
-        } else { // Jika tidak, berarti sedang menambahkan artikel baru
-          await axios.post('http://localhost:3000/articles', this.form)
-        }
-        this.load()
-        this.form.title = ''
-        this.form.content = ''
-        this.form.id = null // Reset form.id setelah menyimpan
-      } catch (e) {
-        console.log(e)
+    async function load() {
+      try {
+        const response = await axios.get('http://localhost:3000/articles');
+        articles.value = response.data;
+      } catch (error) {
+        console.error('Error loading articles:', error);
       }
-    },
-
-    async edit(article) {
-      // Mengisi form dengan data artikel yang akan diedit
-      this.form.id = article.id
-      this.form.title = article.title
-      this.form.content = article.content
     }
-  }
-}
+
+    async function save() {
+      try {
+        const url = form.id
+          ? `http://localhost:3000/articles/${form.id}`
+          : 'http://localhost:3000/articles';
+        const method = form.id ? 'put' : 'post';
+        const response = await axios[method](url, form);
+
+        // Assuming successful save, update UI and reset form
+        articles.value = articles.value.map((article) =>
+          article.id === response.data.id ? response.data : article
+        );
+        form.id = null;
+        form.title = '';
+        form.content = '';
+      } catch (error) {
+        console.error('Error saving article:', error);
+      }
+    }
+
+    function edit(article) {
+      form.id = article.id;
+      form.title = article.title;
+      form.content = article.content;
+    }
+
+    onMounted(load);
+
+    return { form, articles, save, edit };
+  },
+};
 </script>
